@@ -27,6 +27,10 @@ WhiteNoise      noise;
 OnePole         noise_hp;
 Svf             filt;
 ReverbSc        reverb;
+OnePole         output_low_cut_left;
+OnePole         output_low_cut_right;
+OnePole         output_high_cut_left;
+OnePole         output_high_cut_right;
 CpuLoadMeter    cpu_load_meter;
 
 float   breath_target = 0.0f;
@@ -46,6 +50,8 @@ uint8_t active_note   = 60;
 float   reverb_mix    = 0.20f;
 float   reverb_time   = 0.85f;
 constexpr float master_gain = 2.5f;
+constexpr float output_low_cut_hz  = 30.0f;
+constexpr float output_high_cut_hz = 18000.0f;
 constexpr size_t audio_block_size       = 16;
 constexpr size_t control_update_interval = 8;
 constexpr uint32_t display_idle_timeout_ms = 30000;
@@ -378,8 +384,12 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 		}
 		const float mixed_left  = dry * dry_mix + wet_left * wet_mix;
 		const float mixed_right = dry * dry_mix + wet_right * wet_mix;
-		out[0][i] = Clamp(mixed_left * master_gain, -1.0f, 1.0f);
-		out[1][i] = Clamp(mixed_right * master_gain, -1.0f, 1.0f);
+		const float band_limited_left
+		    = output_high_cut_left.Process(output_low_cut_left.Process(mixed_left));
+		const float band_limited_right
+		    = output_high_cut_right.Process(output_low_cut_right.Process(mixed_right));
+		out[0][i] = Clamp(band_limited_left * master_gain, -1.0f, 1.0f);
+		out[1][i] = Clamp(band_limited_right * master_gain, -1.0f, 1.0f);
 	}
 	if(excitation_requested || reverb_block_peak >= reverb_sleep_threshold)
 	{
@@ -556,6 +566,19 @@ int main(void)
 	reverb.Init(samplerate);
 	reverb.SetFeedback(reverb_time);
 	reverb.SetLpFreq(10000.0f);
+
+	output_low_cut_left.Init();
+	output_low_cut_left.SetFilterMode(OnePole::FILTER_MODE_HIGH_PASS);
+	output_low_cut_left.SetFrequency(output_low_cut_hz / samplerate);
+	output_low_cut_right.Init();
+	output_low_cut_right.SetFilterMode(OnePole::FILTER_MODE_HIGH_PASS);
+	output_low_cut_right.SetFrequency(output_low_cut_hz / samplerate);
+	output_high_cut_left.Init();
+	output_high_cut_left.SetFilterMode(OnePole::FILTER_MODE_LOW_PASS);
+	output_high_cut_left.SetFrequency(output_high_cut_hz / samplerate);
+	output_high_cut_right.Init();
+	output_high_cut_right.SetFilterMode(OnePole::FILTER_MODE_LOW_PASS);
+	output_high_cut_right.SetFrequency(output_high_cut_hz / samplerate);
 
 	MidiUartHandler::Config midi_config;
 	midi_config.transport_config.periph

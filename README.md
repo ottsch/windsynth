@@ -127,6 +127,8 @@ recursive submodule-update command from step 2.
 - Gentle soft saturation thickens the exciter before filtering.
 - Stereo reverb follows the synth voice; its wet mix is adjustable from 0-100%
   and its time from 60-95%, both in 5% steps with the encoder.
+- A final stereo 30 Hz low-cut and 18 kHz high-cut keep the dry/reverb mix in a
+  useful audio band before master gain and output limiting.
 - Nonlinear voice controls update at 6 kHz while oscillators, filters, and
   reverb still process every sample. A 16-sample audio block provides more
   callback headroom with only 0.33 ms of buffering at 48 kHz.
